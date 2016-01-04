@@ -21,7 +21,24 @@ function SuperSecretJS(element, options) {
       }
     ];
   }
-
+  if(!options.suggestions) {
+    options.suggestions = [];
+  }
+  if(!options.rules) {
+    options.rules = [{
+      points: 26,
+      regex : new RegExp('[a-z]')
+    },{
+      points: 26,
+      regex : new RegExp('[A-Z]')
+    },{
+      points: 10,
+      regex : new RegExp('[0-9]')
+    },{
+      points: 36,
+      regex : new RegExp("[\\\\|¬¦`!\"£$%^&*=()_+\\[\\]{};:'@#~<>,./? -]")
+    }];
+  }
 
 
   function getColor(percentage) {
@@ -50,28 +67,39 @@ function SuperSecretJS(element, options) {
       calc(startColor.color[2], endColor.color[2], per));
   }
 
-  var upperCase = new RegExp('[A-Z]');
-  var lowerCase = new RegExp('[a-z]');
-  var numbers = new RegExp('[0-9]');
-  var symbols = new RegExp("[\\\\|¬¦`!\"£$%^&*=()_+\\[\\]{};:'@#~<>,./? -]");
-
   function evaluateStrength(value) {
     var pts = 0;
-    if (value.match(lowerCase))
-      pts += 26;
-    if (value.match(upperCase))
-      pts += 26;
-    if (value.match(numbers))
-      pts += 10;
-    if (value.match(symbols))
-      pts += 36;
-    console.log(pts);
-    if (pts != 0)
-      pts = Math.min(Math.round((Math.log(pts, 2) * value.length * 1.1)),
-        100);
-    showStrength(pts);
-  }
 
+    for(var i = 0; i < options.rules.length; i++) {
+      if(typeof options.rules[i].regex) {
+        pts += value.match(options.rules[i].regex) ? options.rules[i].points : 0;
+      } else {
+        pts += options.rules[i].matches(value) ? options.rules[i].points : 0;
+      }
+    }
+
+    if (pts != 0)
+      pts = Math.min(Math.round((Math.log(pts, 2) * value.length * 1.1)), 100);
+    showStrength(pts);
+    updateSuggestions(value);
+  }
+  function updateSuggestions(value) {
+    var valid = true;
+    $(me.suggestionPane).children().each(function(i, item){
+      if(options.suggestions[i].matches(value)) {
+        $(item).addClass("ok");
+      } else {
+        $(item).removeClass("ok");
+        if(options.suggestions[i].required)
+          valid = false;
+      }
+    });
+    if(!valid) {
+      $(".supersecret-wrapper").children("input").addClass("invalid");
+    } else {
+      $(".supersecret-wrapper").children("input").removeClass("invalid");
+    }
+  }
   function showStrength(percentage) {
     $(me.levelBar).css({
       "background-color": getColor(percentage),
@@ -89,6 +117,21 @@ function SuperSecretJS(element, options) {
     me.levelBar = $("<div class=\"supersecret-level-bar\"></div>").appendTo(
       me.wrapper);
     $("<div style=\"clear:both;\"></div>").appendTo(me.wrapper);
+    me.suggestionPane = $("<div class=\"suggestion-pane\"></div>").appendTo(me.wrapper);
+    for(var s = 0; s < options.suggestions.length; s++) {
+      $("<div class=\"suggestion-item\">"+ options.suggestions[s].description +"</div>").appendTo(me.suggestionPane);
+    }
+
+    me.passwordElement.focus(function(){
+      me.wrapper.addClass("focussed");
+    }).blur(function(){
+      me.wrapper.removeClass("focussed");
+    });
+    me.showPasswordElement.focus(function(){
+      me.wrapper.addClass("focussed");
+    }).blur(function(){
+      me.wrapper.removeClass("focussed");
+    });
 
     // Styles
     me.levelBar.css({
